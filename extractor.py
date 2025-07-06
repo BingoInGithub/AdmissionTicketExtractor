@@ -102,10 +102,10 @@ def main(args):
     ocr = OCR(f"{args.outdir}/logs")
     params = []
     total_fnames = set()
-    for idx, fname in enumerate(os.listdir(args.input_dir)):
+    for idx, fname in enumerate(os.listdir(args.indir)):
         # if not fname.endswith("jpg"):
         #     continue
-        path = os.path.abspath(f"{args.input_dir}/{fname}")
+        path = os.path.abspath(f"{args.indir}/{fname}")
         params.append([idx, path, ocr])
         total_fnames.add(fname)
 
@@ -125,11 +125,8 @@ def main(args):
 # 定义任务函数，接受参数
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("usage: python read_pdf.py /path/to/pdfdir /path/to/output.xlsx")
-    parser.add_argument("input_dir", type=str, help="dir path of files")
+    parser.add_argument("indir", type=str, help="dir path of files")
     parser.add_argument("outdir", type=str, help="path to output")
     parser.add_argument("--njobs", type=int, default=16, help="num workers")
     args = parser.parse_args()
     main(args)
-
-# home = "C:/Users/志浩/Documents/WeChat Files/wxid_3620966225512/FileStorage/File/2025-03/常萍萍"
-# python read_pdf.py home home/../output.xlsx
