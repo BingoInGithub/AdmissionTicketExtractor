@@ -12,7 +12,9 @@ from alibabacloud_darabonba_stream.client import Client as StreamClient
 from alibabacloud_ocr_api20210707 import models as ocr_api_20210707_models
 from alibabacloud_tea_util import models as util_models
 from alibabacloud_tea_util.client import Client as UtilClient
+from dotenv import load_dotenv
 
+load_dotenv()
 
 class OCR:
     def __init__(self, outdir):
@@ -32,10 +34,8 @@ class OCR:
         #     credential=credential
         # )
         config = open_api_models.Config(
-            # 您的AccessKey ID,
-            access_key_id="LTAI5t6ajBimLh4QJZZ2p9Av",
-            # 您的AccessKey Secret,
-            access_key_secret="j6AkLfueoOZkuubIpYObCVujbzhHi3"
+            access_key_id=os.environ.get('ALIBABA_CLOUD_ACCESS_KEY_ID'),
+            access_key_secret=os.environ.get('ALIBABA_CLOUD_ACCESS_KEY_SECRET'),
         )
         # Endpoint 请参考 https://api.aliyun.com/product/ocr-api
         config.endpoint = f'ocr-api.cn-hangzhou.aliyuncs.com'
