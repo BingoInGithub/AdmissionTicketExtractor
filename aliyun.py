@@ -17,18 +17,7 @@ from alibabacloud_tea_util.client import Client as UtilClient
 class OCR:
     def __init__(self, outdir):
         os.makedirs(outdir, exist_ok=True)
-        result_path = f"{outdir}/result.jsonl"
-        self.dres = {}
-        if os.path.exists(result_path):
-            with jsonlines.open(result_path, "r") as rf:
-                for item in rf:
-                    image_path = item["image_path"]
-                    self.dres[image_path] = item
-        self.result_file = jsonlines.open(result_path, "w")
-        for _, item in self.dres.items():
-            self.result_file.write(item)
-
-        self.err_file = open(f"{outdir}/err.log", "w")
+        self.outdir = outdir
         self.client = self.create_client()
 
     def create_client(self) -> ocr_api20210707Client:
@@ -53,8 +42,16 @@ class OCR:
         return ocr_api20210707Client(config)
 
     def parse(self, idx, path) -> None:
-        if path in self.dres:
-            return self.dres[path]
+        result_path = f"{self.outdir}/result_{idx}.jsonl"
+        err_path = f"{self.outdir}/error_{idx}.log"
+        if os.path.exists(result_path):
+            with jsonlines.open(result_path, "r") as rf:
+                for item in rf:
+                    image_path = item["image_path"]
+                    if image_path == path:
+                        # print(f"{path} exists.")
+                        return item
+
         # 需要安装额外的依赖库，直接点击下载完整工程即可看到所有依赖。
         body_stream = StreamClient.read_from_file_path(path)
         recognize_all_text_request = ocr_api_20210707_models.RecognizeAllTextRequest(
@@ -66,10 +63,12 @@ class OCR:
             res = self.client.recognize_all_text_with_options(recognize_all_text_request, runtime)
             res = res.to_map()
             res["image_path"] = path
-            self.result_file.write(res)
+            with jsonlines.open(result_path, "w") as wf:
+                wf.write(res)
         except Exception as error:
             # 错误 message
-            self.err_file(f"msg={error.message}, address={error.data.get('Recommend')}")
+            with open(err_path, "w") as wf:
+                wf.write(f"msg={error.message}, address={error.data.get('Recommend')}")
             UtilClient.assert_as_string(error.message)
             res = None
         return res

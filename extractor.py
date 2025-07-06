@@ -2,7 +2,6 @@ import os
 import pdfplumber
 import pandas as pd
 import argparse
-import ipdb
 from tqdm import tqdm
 from multiprocessing import freeze_support, Pool
 from aliyun import OCR
@@ -93,7 +92,8 @@ def write_excel(reslist, outdir, total_fnames):
         df1.to_excel(writer, index=False, sheet_name="准考证")
         df2.to_excel(writer, index=False, sheet_name="失败文件")
 
-    print(f"Excel文件已保存至{outpath}！{len(failed_fnames)}个失败")
+    print(f"{len(success_fnames)}个成功,{len(failed_fnames)}个失败.")
+    print(f"Excel文件已保存至{outpath}！")
 
 
 def main(args):
