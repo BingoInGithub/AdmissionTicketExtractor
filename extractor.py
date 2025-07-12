@@ -97,7 +97,7 @@ def extract_images_from_pdf(pdf_path, logdir):
     # print(f"图片已合并并保存为: {output_path}")
     return combined_image_path
 
-def read_picture(idx, path, ocr):
+def read_picture(idx, fname, path, ocr):
     kaohao, name, idnum = None, None, None
     res = ocr.parse(idx, path)
 
@@ -111,11 +111,11 @@ def read_picture(idx, path, ocr):
             idnum = value.replace("：", ":").split(":")[1]
 
     res = []
-    fname = os.path.basename(path)
+    # fname = os.path.basename(path)
     res.append([fname, kaohao, name, idnum])
     return res
 
-def read_pdf(idx, path, ocr, logdir):
+def read_pdf(idx, fname, path, ocr, logdir):
     d = {}
     with pdfplumber.open(path) as pdf:
         for page_num, page in enumerate(pdf.pages):
@@ -138,9 +138,9 @@ def read_pdf(idx, path, ocr, logdir):
                     d[kaohao]['id'] = idnum
     if len(d) == 0:
         path = extract_images_from_pdf(path, logdir)
-        return read_picture(idx, path, ocr)
+        return read_picture(idx, fname, path, ocr)
     res = []
-    fname = os.path.basename(path)
+    # fname = os.path.basename(path)
     for kaohao, item in d.items():
         res.append([fname, kaohao, item['name'], item['id']])
     return res
@@ -148,11 +148,12 @@ def read_pdf(idx, path, ocr, logdir):
 def read_worker(param):
     idx, path, ocr, logdir = param
     try:
+        fname = os.path.basename(path)
         suffix = path.split(".")[-1].lower()
         if suffix in ["pdf"]:
-            return read_pdf(idx, path, ocr, logdir)
+            return read_pdf(idx, fname, path, ocr, logdir)
         elif suffix in ["jpg", "jpeg", "png"]:
-            return read_picture(idx, path, ocr)
+            return read_picture(idx, fname, path, ocr)
         else:
             raise Exception(f"not support format: {path}")
     except:
