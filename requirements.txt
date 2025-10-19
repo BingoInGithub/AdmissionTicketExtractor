@@ -5,3 +5,5 @@ pandas
 openpyxl
 jsonlines
 python-dotenv
+PyMuPDF
+pillow
