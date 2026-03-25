@@ -2,6 +2,8 @@ import os
 import pdfplumber
 import pandas as pd
 import argparse
+import traceback
+from datetime import datetime
 from tqdm import tqdm
 from multiprocessing import freeze_support, Pool
 from aliyun import OCR
@@ -124,13 +126,12 @@ def read_pdf(idx, fname, path, ocr, logdir):
             tsp = text.split('\n')
             for i,line in enumerate(tsp):
                 if "考生号" in line:
-                    lsp = line.strip().split()
-                    kaohao = lsp[0].split('：')[1]
-                    name = lsp[1].split('：')[1]
+                    kaohao, name = line.replace(' ', '').split('性别：')[0].split('姓名：')
+                    kaohao = kaohao.split('考生号：')[1]
                     assert kaohao not in d, kaohao
                     d[kaohao] = {'name': name}
                 elif "身份证号" in line:
-                    idnum = line.strip().split('：')[1]
+                    idnum = line.replace(' ', '').strip().split('：')[1]
                     assert kaohao is not None
                     if idnum == '':
                         idnum = tsp[i+1].strip()
@@ -147,8 +148,8 @@ def read_pdf(idx, fname, path, ocr, logdir):
 
 def read_worker(param):
     idx, path, ocr, logdir = param
+    fname = os.path.basename(path)
     try:
-        fname = os.path.basename(path)
         suffix = path.split(".")[-1].lower()
         if suffix in ["pdf"]:
             return read_pdf(idx, fname, path, ocr, logdir)
@@ -156,8 +157,19 @@ def read_worker(param):
             return read_picture(idx, fname, path, ocr)
         else:
             raise Exception(f"not support format: {path}")
-    except:
-        print(f"{path} 解析失败")
+    except Exception as e:
+        error_msg = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 文件解析失败: {path}\n"
+        error_msg += f"错误类型: {type(e).__name__}\n"
+        error_msg += f"错误信息: {str(e)}\n"
+        error_msg += f"堆栈跟踪:\n{traceback.format_exc()}\n"
+        error_msg += "-" * 80 + "\n"
+
+        # 写入错误日志文件
+        error_log_path = os.path.join(logdir, "error.log")
+        with open(error_log_path, "a", encoding="utf-8") as f:
+            f.write(error_msg)
+
+        print(f"{fname} 解析失败，详情见 {error_log_path}")
     return []
 
 
@@ -212,6 +224,16 @@ def main(args):
     os.makedirs(args.outdir, exist_ok=True)
     logdir = f"{args.outdir}/logs"
     os.makedirs(logdir, exist_ok=True)
+
+    # 初始化错误日志文件
+    error_log_path = os.path.join(logdir, "error.log")
+    with open(error_log_path, "w", encoding="utf-8") as f:
+        f.write(f"{'='*80}\n")
+        f.write(f"准考证解析日志 - 开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"输入目录: {args.indir}\n")
+        f.write(f"输出目录: {args.outdir}\n")
+        f.write(f"{'='*80}\n\n")
+
     ocr = OCR(logdir)
     params = []
     total_fnames = set()
@@ -234,6 +256,13 @@ def main(args):
     print("All tasks have finished.")
     # 打印结果或进行其他操作
     write_excel(results, args.outdir, total_fnames)
+
+    # 记录结束日志
+    error_log_path = os.path.join(logdir, "error.log")
+    with open(error_log_path, "a", encoding="utf-8") as f:
+        f.write(f"\n{'='*80}\n")
+        f.write(f"准考证解析日志 - 结束时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"{'='*80}\n")
 
 # 定义任务函数，接受参数
 if __name__ == '__main__':
