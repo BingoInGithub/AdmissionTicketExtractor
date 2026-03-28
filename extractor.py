@@ -41,6 +41,7 @@ def combine_images_vertically(image_folder, output_path):
     print(f"图片已合并并保存为: {output_path}")
 
 def extract_images_from_pdf(pdf_path, logdir):
+    os.makedirs(logdir, exist_ok=True)
     base_name = os.path.basename(pdf_path)
     combined_image_path = f"{logdir}/{base_name}.jpg"
     if os.path.exists(combined_image_path):
