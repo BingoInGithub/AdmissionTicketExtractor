@@ -182,22 +182,31 @@ def write_excel(reslist, outdir, total_fnames):
         "身份证号": []
     }
     for item in reslist:
-        if len(item) == 0:
-            continue
-        item = item[0]
-        if 'cid:0' in item[1]:
-            continue
-        valid = True
-        for val in item:
-            if val is None or len(val) == 0:
-                valid = False
-                break
-        if not valid:
-            continue
-        data1["文件名"].append(item[0])
-        data1["考生号"].append(item[1])
-        data1["姓名"].append(item[2])
-        data1["身份证号"].append(item[3])
+        try:
+            if len(item) == 0:
+                continue
+            item = item[0]
+            if item is None:
+                continue
+            if 'cid:0' in item[1]:
+                continue
+            valid = True
+            for val in item:
+                if val is None or len(val) == 0:
+                    valid = False
+                    break
+            if not valid:
+                continue
+            data1["文件名"].append(item[0])
+            data1["考生号"].append(item[1])
+            data1["姓名"].append(item[2])
+            data1["身份证号"].append(item[3])
+        except Exception as e:
+            error_msg = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] item写入失败: {item}\n"
+            error_msg += f"错误类型: {type(e).__name__}\n"
+            error_msg += f"错误信息: {str(e)}\n"
+            error_msg += f"堆栈跟踪:\n{traceback.format_exc()}\n"
+            error_msg += "-" * 80 + "\n"
 
     df1 = pd.DataFrame(data1)
 
