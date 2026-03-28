@@ -136,7 +136,6 @@ def read_pdf(idx, fname, path, ocr, logdir):
         path = extract_images_from_pdf(path, logdir)
         return read_picture(idx, fname, path, ocr)
     res = []
-    # fname = os.path.basename(path)
     for kaohao, item in d.items():
         res.append([fname, kaohao, item['name'], item['id']])
     return res
