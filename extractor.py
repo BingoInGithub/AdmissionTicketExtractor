@@ -3,6 +3,8 @@ import pdfplumber
 import pandas as pd
 import argparse
 import traceback
+import io 
+import contextlib
 from datetime import datetime
 from tqdm import tqdm
 from multiprocessing import freeze_support, Pool
@@ -47,58 +49,43 @@ def extract_images_from_pdf(pdf_path, logdir):
     if os.path.exists(combined_image_path):
         return combined_image_path
 
-    # 打开 PDF 文件
     doc = fitz.open(pdf_path)
+    rendered_images = []
 
-    image_count = 0
-    image_paths = []
-    # 遍历每一页
-    for page_num in range(len(doc)):
-        page = doc.load_page(page_num)
-        image_list = page.get_images(full=True)  # 获取该页所有图像
+    try:
+        for page_num in range(len(doc)):
+            page = doc.load_page(page_num)
 
-        # print(f"第 {page_num + 1} 页发现 {len(image_list)} 张图片")
+            # 渲染页面而不是提取内嵌图片
+            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+            img_path = f"{logdir}/{base_name}_page_{page_num}.png"
+            pix.save(img_path)
 
-        # 遍历所有图像
-        for img_index, img in enumerate(image_list):
-            xref = img[0]  # XREF 是图像在 PDF 中的唯一标识符
-            base_image = doc.extract_image(xref)
-            image_bytes = base_image["image"]  # 图像二进制数据
-            image_ext = base_image["ext"]      # 图像扩展名 (png, jpeg 等)
+            try:
+                img = Image.open(img_path).convert("RGB")
+                rendered_images.append(img)
+            except Exception as e:
+                print(f"页面渲染图打开失败: {img_path}, err={e}")
 
-            # 写入图像文件
-            image_path = f"{logdir}/{base_name}_{page_num}_{img_index}.{image_ext}"
+    finally:
+        doc.close()
 
-            with open(image_path, "wb") as img_file:
-                img_file.write(image_bytes)
+    if not rendered_images:
+        raise Exception(f"PDF渲染失败，没有可用页面图像: {pdf_path}")
 
-            image_count += 1
-            image_paths.append(image_path)
-            # print(f"已保存: {image_path}")
+    max_width = max(img.width for img in rendered_images)
+    total_height = sum(img.height for img in rendered_images)
 
-    doc.close()
-    # print(f"\n共提取 {image_count} 张图片")
-
-    images = [Image.open(image_path) for image_path in image_paths]
-
-    # 获取最大宽度，总高度为所有图片高度之和
-    max_width = max(img.width for img in images)
-    total_height = sum(img.height for img in images)
-
-    # 创建新图像，白色背景
     combined_image = Image.new('RGB', (max_width, total_height), (255, 255, 255))
 
-    # 逐张粘贴
     y_offset = 0
-    for img in images:
+    for img in rendered_images:
         combined_image.paste(img, (0, y_offset))
         y_offset += img.height
 
-    # 保存结果
-    
     combined_image.save(combined_image_path)
-    # print(f"图片已合并并保存为: {output_path}")
     return combined_image_path
+
 
 def read_picture(idx, fname, path, ocr):
     kaohao, name, idnum = None, None, None
@@ -122,7 +109,14 @@ def read_pdf(idx, fname, path, ocr, logdir):
     d = {}
     with pdfplumber.open(path) as pdf:
         for page_num, page in enumerate(pdf.pages):
-            text = page.extract_text()
+            buf = io.StringIO()
+            with contextlib.redirect_stderr(buf):
+                text = page.extract_text()
+
+            stderr_output = buf.getvalue()
+            if "Could get FontBBox from font descriptor because None cannot be parsed as 4 floats" in stderr_output:
+                print(f"页面{page_num}提取文本失败")
+                continue
             kaohao = None
             tsp = text.split('\n')
             for i,line in enumerate(tsp):
